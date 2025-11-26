@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+
 interface Withdrawal {
   id: string;
   amount: number;
@@ -21,6 +22,7 @@ const Wallet = () => {
   const [heldBalance, setHeldBalance] = useState(0);
   const [hasWithdrawn, setHasWithdrawn] = useState(false);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+  const [withdrawAmount, setWithdrawAmount] = useState(0);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -40,9 +42,12 @@ const Wallet = () => {
       .single();
 
     if (data) {
-      setApprovedBalance(data.approved_balance);
-      setHeldBalance(data.held_balance);
-      setHasWithdrawn(data.has_withdrawn);
+      const approved = Number(data.approved_balance) || 0;
+      const held = Number(data.held_balance) || 0;
+      setApprovedBalance(approved);
+      setHeldBalance(held);
+      setHasWithdrawn(!!data.has_withdrawn);
+      setWithdrawAmount(approved);
     }
   };
 
@@ -62,10 +67,23 @@ const Wallet = () => {
   };
 
   const handleWithdraw = async () => {
-    const minimumAmount = hasWithdrawn ? 0 : 3100;
-    
-    if (approvedBalance < minimumAmount) {
-      toast.error(`Minimum withdrawal amount is KSh ${minimumAmount}`);
+    if (!user) return;
+
+    const amount = Number(withdrawAmount);
+    const minimumFirstWithdrawal = 3100;
+
+    if (!amount || amount <= 0) {
+      toast.error("Please enter a valid withdrawal amount.");
+      return;
+    }
+
+    if (amount > approvedBalance) {
+      toast.error("You cannot withdraw more than your approved balance.");
+      return;
+    }
+
+    if (!hasWithdrawn && amount < minimumFirstWithdrawal) {
+      toast.error("Your first withdrawal must be at least Ksh 3,100. Future withdrawals will have no minimum amount.");
       return;
     }
 
@@ -74,8 +92,8 @@ const Wallet = () => {
     const { error } = await supabase
       .from("withdrawals")
       .insert({
-        user_id: user?.id,
-        amount: approvedBalance,
+        user_id: user.id,
+        amount,
         status: "pending",
       });
 
@@ -84,16 +102,16 @@ const Wallet = () => {
     } else {
       toast.success("Withdrawal request submitted successfully");
       
-      // Update has_withdrawn flag
+      // Update has_withdrawn flag after the first successful request
       if (!hasWithdrawn) {
         await supabase
           .from("profiles")
           .update({ has_withdrawn: true })
-          .eq("id", user?.id);
+          .eq("id", user.id);
       }
       
-      fetchWalletData();
-      fetchWithdrawals();
+      await fetchWalletData();
+      await fetchWithdrawals();
     }
     
     setLoading(false);
@@ -126,7 +144,6 @@ const Wallet = () => {
   };
 
   const totalBalance = approvedBalance + heldBalance;
-  const minimumWithdrawal = hasWithdrawn ? 10 : 3100;
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
@@ -175,17 +192,32 @@ const Wallet = () => {
           )}
         </div>
 
-        {/* Withdraw Button */}
-        <div className="bg-card rounded-2xl p-6 border border-border">
-          <Button
-            onClick={handleWithdraw}
-            disabled={loading || approvedBalance < minimumWithdrawal}
-            className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold mb-3"
-          >
-            {loading ? "Processing..." : "Withdraw"}
-          </Button>
+        {/* Withdraw Section */}
+        <div className="bg-card rounded-2xl p-6 border border-border space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="font-semibold text-secondary">Withdraw Amount</span>
+            <span className="text-sm text-muted-foreground">Available: Ksh {approvedBalance.toFixed(2)}</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              min={0}
+              value={withdrawAmount}
+              onChange={(e) => setWithdrawAmount(Number(e.target.value))}
+              className="flex-1 h-11 rounded-xl border border-border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+            />
+            <Button
+              onClick={handleWithdraw}
+              disabled={loading || approvedBalance <= 0}
+              className="h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+            >
+              {loading ? "Processing..." : "Withdraw"}
+            </Button>
+          </div>
           <p className="text-center text-sm text-muted-foreground">
-            Minimum withdrawal: Ksh {minimumWithdrawal.toFixed(2)}
+            {!hasWithdrawn
+              ? "Your first withdrawal must be at least Ksh 3,100. Future withdrawals will have no minimum amount."
+              : "You can withdraw any amount up to your approved balance."}
           </p>
         </div>
 

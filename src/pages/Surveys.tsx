@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Clock, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import AppHeader from "@/components/layout/AppHeader";
 import MobileNav from "@/components/layout/MobileNav";
 import { Button } from "@/components/ui/button";
@@ -18,24 +19,85 @@ interface Survey {
 
 const Surveys = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [surveys, setSurveys] = useState<Survey[]>([]);
   const [loading, setLoading] = useState(true);
+  const [limitReached, setLimitReached] = useState(false);
+  const [cooldownActive, setCooldownActive] = useState(false);
 
   useEffect(() => {
-    fetchSurveys();
-  }, []);
+    if (user) {
+      fetchSurveys();
+    }
+  }, [user]);
 
   const fetchSurveys = async () => {
+    if (!user) return;
     setLoading(true);
-    const { data } = await supabase
+    setLimitReached(false);
+    setCooldownActive(false);
+
+    // Check how many surveys the user has completed today
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const { data: todayResponses } = await supabase
+      .from("survey_responses")
+      .select("id, created_at")
+      .eq("user_id", user.id)
+      .gte("created_at", startOfToday.toISOString())
+      .lte("created_at", endOfToday.toISOString());
+
+    if (todayResponses && todayResponses.length >= 5) {
+      setLimitReached(true);
+      setSurveys([]);
+      setLoading(false);
+      return;
+    }
+
+    // Enforce a cooldown so new tasks only appear every few hours
+    const lastFetch = localStorage.getItem("survey_last_fetch");
+    if (lastFetch) {
+      const diffHours = (Date.now() - Number(lastFetch)) / (1000 * 60 * 60);
+      if (diffHours < 3) {
+        setCooldownActive(true);
+        setSurveys([]);
+        setLoading(false);
+        return;
+      }
+    }
+
+    // Fetch all active surveys
+    const { data: surveysData } = await supabase
       .from("surveys")
       .select("*")
       .eq("is_active", true)
       .order("created_at", { ascending: false });
 
-    if (data) {
-      setSurveys(data);
+    let availableSurveys: Survey[] = surveysData || [];
+
+    // Remove surveys the user has already completed
+    const { data: completed } = await supabase
+      .from("survey_responses")
+      .select("survey_id")
+      .eq("user_id", user.id);
+
+    if (completed) {
+      const completedIds = new Set(completed.map((r) => r.survey_id));
+      availableSurveys = availableSurveys.filter((s) => !completedIds.has(s.id));
     }
+
+    // Only show up to 2 surveys at a time
+    const limitedSurveys = availableSurveys.slice(0, 2);
+    setSurveys(limitedSurveys);
+
+    if (limitedSurveys.length > 0) {
+      localStorage.setItem("survey_last_fetch", Date.now().toString());
+      setCooldownActive(false);
+    }
+
     setLoading(false);
   };
 
@@ -83,7 +145,11 @@ const Surveys = () => {
               No Surveys Available Right Now
             </h3>
             <p className="text-muted-foreground mb-6">
-              We're always looking for new opportunities for you. Please check again later!
+              {limitReached
+                ? "You've reached today's maximum of 5 tasks. New surveys will be available tomorrow."
+                : cooldownActive
+                  ? "You've completed all available surveys for now. Please check again in a few hours for new tasks."
+                  : "We're always looking for new opportunities for you. Please check again later!"}
             </p>
             
             <Button
@@ -110,7 +176,7 @@ const Surveys = () => {
           <div key={survey.id} className="bg-card rounded-2xl p-6 border border-border">
             <div className="mb-4">
               <span className="inline-block px-4 py-1.5 bg-primary/10 text-primary font-bold rounded-full text-sm mb-3">
-                KSh {survey.reward_amount}
+                Ksh {survey.reward_amount}
               </span>
               <h3 className="text-xl font-bold text-secondary mb-2">{survey.title}</h3>
               <p className="text-muted-foreground text-sm mb-3">{survey.description}</p>

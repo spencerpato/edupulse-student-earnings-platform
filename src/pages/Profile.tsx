@@ -133,11 +133,11 @@ const Profile = () => {
             </Button>
           </div>
           
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <div className="text-sm text-muted-foreground">Referral Earnings:</div>
-              <div className="text-2xl font-bold text-secondary">${referralEarnings.toFixed(2)}</div>
-            </div>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="text-sm text-muted-foreground">Referral Earnings:</div>
+                <div className="text-2xl font-bold text-secondary">Ksh {referralEarnings.toFixed(2)}</div>
+              </div>
             <Button
               onClick={shareReferralLink}
               className="bg-primary hover:bg-primary/90 text-primary-foreground"
