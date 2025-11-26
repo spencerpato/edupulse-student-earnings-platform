@@ -91,8 +91,48 @@ const TakeSurvey = () => {
   };
 
   const handleSubmit = async () => {
+    if (!user || !id) {
+      toast.error("You must be logged in to submit this survey.");
+      return;
+    }
+
     if (submitting) return;
     setSubmitting(true);
+
+    // Prevent duplicate submissions for the same survey
+    const { data: existing } = await supabase
+      .from("survey_responses")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("survey_id", id)
+      .maybeSingle();
+
+    if (existing) {
+      toast.error("You have already completed this survey.");
+      setSubmitting(false);
+      navigate("/surveys");
+      return;
+    }
+
+    // Enforce a maximum of 5 surveys per day
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const { data: todayResponses } = await supabase
+      .from("survey_responses")
+      .select("id, created_at")
+      .eq("user_id", user.id)
+      .gte("created_at", startOfToday.toISOString())
+      .lte("created_at", endOfToday.toISOString());
+
+    if (todayResponses && todayResponses.length >= 5) {
+      toast.error("You have reached the maximum of 5 surveys for today.");
+      setSubmitting(false);
+      navigate("/surveys");
+      return;
+    }
 
     const timeTaken = Math.floor((Date.now() - startTime) / 1000);
 
@@ -100,8 +140,8 @@ const TakeSurvey = () => {
     const isSuspicious = timeTaken < 10;
 
     const { error } = await supabase.from("survey_responses").insert({
-      survey_id: id!,
-      user_id: user!.id,
+      survey_id: id,
+      user_id: user.id,
       answers,
       time_taken_seconds: timeTaken,
       is_flagged: isSuspicious,

@@ -107,7 +107,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -117,14 +117,36 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error };
       }
 
-      // Success message will be shown after admin status is checked
+      const userId = data.user?.id;
+
+      if (userId) {
+        const { data: roleData, error: roleError } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          .eq("role", "admin")
+          .maybeSingle();
+
+        if (!roleError && roleData) {
+          setIsAdmin(true);
+          toast.success("Welcome Admin!");
+          navigate("/admin");
+        } else {
+          setIsAdmin(false);
+          toast.success("Welcome back!");
+          navigate("/");
+        }
+      } else {
+        // Fallback navigation if user is not available for some reason
+        navigate("/");
+      }
+
       return { error: null };
     } catch (error: any) {
       toast.error("An unexpected error occurred during sign in");
       return { error };
     }
   };
-
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
