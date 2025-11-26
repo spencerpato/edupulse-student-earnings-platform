@@ -15,6 +15,10 @@ import EditProfile from "./pages/EditProfile";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
 import NotFound from "./pages/NotFound";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import ManageSurveys from "./pages/admin/ManageSurveys";
+import ManageWithdrawals from "./pages/admin/ManageWithdrawals";
+import TakeSurvey from "./pages/TakeSurvey";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +72,40 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <EditProfile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/surveys/:id"
+              element={
+                <ProtectedRoute>
+                  <TakeSurvey />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Admin Routes */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/surveys"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <ManageSurveys />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/withdrawals"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <ManageWithdrawals />
                 </ProtectedRoute>
               }
             />

@@ -38,7 +38,12 @@ const Login = () => {
       const { error } = await signIn(validated.email, validated.password);
       
       if (!error) {
-        navigate("/");
+        // Check if admin and redirect accordingly
+        if (validated.email === "edupulse@gmail.com") {
+          navigate("/admin");
+        } else {
+          navigate("/");
+        }
       }
     } catch (error) {
       if (error instanceof z.ZodError) {

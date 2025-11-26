@@ -137,7 +137,7 @@ const Wallet = () => {
         <div className="bg-card rounded-2xl p-6 text-center border border-border">
           <div className="text-muted-foreground mb-2">Total Balance</div>
           <div className="text-4xl font-bold text-secondary">
-            ${totalBalance.toFixed(2)}
+            Ksh {totalBalance.toFixed(2)}
           </div>
         </div>
 
@@ -153,7 +153,7 @@ const Wallet = () => {
                 <div className="text-sm text-muted-foreground">Withdrawable</div>
               </div>
             </div>
-            <div className="text-xl font-bold text-secondary">${approvedBalance.toFixed(2)}</div>
+            <div className="text-xl font-bold text-secondary">Ksh {approvedBalance.toFixed(2)}</div>
           </div>
 
           {heldBalance > 0 && (
@@ -168,7 +168,7 @@ const Wallet = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <div className="text-xl font-bold text-secondary">${heldBalance.toFixed(2)}</div>
+                <div className="text-xl font-bold text-secondary">Ksh {heldBalance.toFixed(2)}</div>
                 <Info className="h-4 w-4 text-muted-foreground" />
               </div>
             </div>
@@ -185,7 +185,7 @@ const Wallet = () => {
             {loading ? "Processing..." : "Withdraw"}
           </Button>
           <p className="text-center text-sm text-muted-foreground">
-            Minimum withdrawal: ${minimumWithdrawal.toFixed(2)}
+            Minimum withdrawal: Ksh {minimumWithdrawal.toFixed(2)}
           </p>
         </div>
 
@@ -204,7 +204,7 @@ const Wallet = () => {
                       <ArrowUp className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <div className="font-bold text-secondary">${withdrawal.amount.toFixed(2)}</div>
+                      <div className="font-bold text-secondary">Ksh {withdrawal.amount.toFixed(2)}</div>
                       <div className="text-sm text-muted-foreground">
                         {new Date(withdrawal.created_at).toLocaleDateString("en-US", { 
                           year: "numeric", 
