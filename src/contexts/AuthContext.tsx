@@ -104,6 +104,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
+      // Check if this is admin login
+      if (email === "edupulse@gmail.com" && password === "Patrick3663") {
+        const { data, error } = await supabase.functions.invoke("admin-login", {
+          body: { email, password },
+        });
+
+        if (error || !data?.success) {
+          toast.error("Invalid admin credentials");
+          return { error: error || new Error("Admin login failed") };
+        }
+
+        toast.success("Welcome Admin!");
+        return { error: null };
+      }
+
+      // Regular user login
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,

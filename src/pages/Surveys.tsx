@@ -122,7 +122,7 @@ const Surveys = () => {
             </div>
             
             <Button
-              onClick={() => navigate(`/survey/${survey.id}`)}
+              onClick={() => navigate(`/surveys/${survey.id}`)}
               className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
             >
               Start Task
