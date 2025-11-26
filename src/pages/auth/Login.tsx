@@ -19,14 +19,19 @@ const Login = () => {
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [loading, setLoading] = useState(false);
   
-  const { signIn, user } = useAuth();
+  const { signIn, user, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (user) {
-      navigate("/");
+      // Navigate based on admin status
+      if (isAdmin) {
+        navigate("/admin");
+      } else {
+        navigate("/");
+      }
     }
-  }, [user, navigate]);
+  }, [user, isAdmin, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,12 +43,7 @@ const Login = () => {
       const { error } = await signIn(validated.email, validated.password);
       
       if (!error) {
-        // Check if admin and redirect accordingly
-        if (validated.email === "edupulse@gmail.com") {
-          navigate("/admin");
-        } else {
-          navigate("/");
-        }
+        // Navigation will happen via useEffect after admin status is determined
       }
     } catch (error) {
       if (error instanceof z.ZodError) {

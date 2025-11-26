@@ -65,12 +65,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (!error && data) {
         setIsAdmin(true);
+        toast.success("Welcome Admin!");
       } else {
         setIsAdmin(false);
+        toast.success("Welcome back!");
       }
     } catch (error) {
       console.error("Error checking admin status:", error);
       setIsAdmin(false);
+      toast.success("Welcome back!");
     }
   };
 
@@ -104,22 +107,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      // Check if this is admin login
-      if (email === "edupulse@gmail.com" && password === "Patrick3663") {
-        const { data, error } = await supabase.functions.invoke("admin-login", {
-          body: { email, password },
-        });
-
-        if (error || !data?.success) {
-          toast.error("Invalid admin credentials");
-          return { error: error || new Error("Admin login failed") };
-        }
-
-        toast.success("Welcome Admin!");
-        return { error: null };
-      }
-
-      // Regular user login
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -130,7 +117,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error };
       }
 
-      toast.success("Welcome back!");
+      // Success message will be shown after admin status is checked
       return { error: null };
     } catch (error: any) {
       toast.error("An unexpected error occurred during sign in");
