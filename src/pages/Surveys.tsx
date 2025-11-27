@@ -57,13 +57,42 @@ const Surveys = () => {
       return;
     }
 
-    // Enforce a cooldown so new tasks only appear every few hours
-    const lastFetch = localStorage.getItem("survey_last_fetch");
-    if (lastFetch) {
-      const diffHours = (Date.now() - Number(lastFetch)) / (1000 * 60 * 60);
+    // Check if we have cached surveys that haven't been submitted yet
+    const cachedSurveys = localStorage.getItem("active_surveys");
+    const lastFetchTime = localStorage.getItem("survey_last_fetch");
+    
+    if (cachedSurveys && lastFetchTime) {
+      const parsedSurveys: Survey[] = JSON.parse(cachedSurveys);
+      const timeSinceFetch = (Date.now() - Number(lastFetchTime)) / (1000 * 60 * 60);
+      
+      // If less than 3 hours since fetch, use cached surveys
+      if (timeSinceFetch < 3 && parsedSurveys.length > 0) {
+        // Verify user hasn't completed these yet
+        const { data: completed } = await supabase
+          .from("survey_responses")
+          .select("survey_id")
+          .eq("user_id", user.id);
+        
+        if (completed) {
+          const completedIds = new Set(completed.map((r) => r.survey_id));
+          const stillAvailable = parsedSurveys.filter((s) => !completedIds.has(s.id));
+          
+          if (stillAvailable.length > 0) {
+            setSurveys(stillAvailable);
+            setLoading(false);
+            return;
+          }
+        }
+      }
+    }
+    
+    // Enforce cooldown for fetching NEW surveys (3 hours minimum)
+    if (lastFetchTime) {
+      const diffHours = (Date.now() - Number(lastFetchTime)) / (1000 * 60 * 60);
       if (diffHours < 3) {
         setCooldownActive(true);
         setSurveys([]);
+        localStorage.removeItem("active_surveys"); // Clear cache if cooldown active
         setLoading(false);
         return;
       }
@@ -94,8 +123,12 @@ const Surveys = () => {
     setSurveys(limitedSurveys);
 
     if (limitedSurveys.length > 0) {
+      // Cache these surveys and timestamp
+      localStorage.setItem("active_surveys", JSON.stringify(limitedSurveys));
       localStorage.setItem("survey_last_fetch", Date.now().toString());
       setCooldownActive(false);
+    } else {
+      localStorage.removeItem("active_surveys");
     }
 
     setLoading(false);

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { User, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,9 @@ const signupSchema = z.object({
 });
 
 const Signup = () => {
+  const location = useLocation();
+  const referredBy = location.state?.referredBy;
+  
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,7 +31,7 @@ const Signup = () => {
   const [errors, setErrors] = useState<any>({});
   const [loading, setLoading] = useState(false);
   
-  const { signUp, user } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -44,11 +47,16 @@ const Signup = () => {
 
     try {
       const validated = signupSchema.parse({ fullName, email, password, confirmPassword });
-      const { error } = await signUp(validated.email, validated.password, validated.fullName);
       
-      if (!error) {
-        navigate("/auth/login");
-      }
+      // Instead of creating account, redirect to payment page
+      navigate("/auth/payment-invoice", {
+        state: {
+          fullName: validated.fullName,
+          email: validated.email,
+          password: validated.password,
+          referredBy: referredBy || null,
+        }
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         const fieldErrors: any = {};
@@ -163,8 +171,12 @@ const Signup = () => {
               className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
               disabled={loading}
             >
-              {loading ? "Creating Account..." : "Create Account"}
+              {loading ? "Processing..." : "Continue to Payment"}
             </Button>
+            
+            <p className="text-xs text-center text-muted-foreground">
+              A refundable KES 100 registration fee will be added to your wallet
+            </p>
           </form>
 
           <div className="mt-6 text-center">

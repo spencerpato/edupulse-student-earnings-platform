@@ -1,1 +1,4 @@
 project_id = "skmhyvqlbxhsorulkfns"
+
+[functions.pesapal-ipn]
+verify_jwt = false

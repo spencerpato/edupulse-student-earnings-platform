@@ -154,6 +154,18 @@ const TakeSurvey = () => {
       return;
     }
 
+    // Clear cached surveys so the submitted one disappears
+    const cachedSurveys = localStorage.getItem("active_surveys");
+    if (cachedSurveys) {
+      const surveys: any[] = JSON.parse(cachedSurveys);
+      const updatedSurveys = surveys.filter((s) => s.id !== id);
+      if (updatedSurveys.length > 0) {
+        localStorage.setItem("active_surveys", JSON.stringify(updatedSurveys));
+      } else {
+        localStorage.removeItem("active_surveys");
+      }
+    }
+
     toast.success(isSuspicious ? "Survey submitted for review" : "Survey completed!");
     navigate("/surveys");
   };

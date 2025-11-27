@@ -14,6 +14,9 @@ import Profile from "./pages/Profile";
 import EditProfile from "./pages/EditProfile";
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
+import PaymentInvoice from "./pages/auth/PaymentInvoice";
+import PaymentPending from "./pages/auth/PaymentPending";
+import ReferralRedirect from "./pages/ReferralRedirect";
 import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ManageSurveys from "./pages/admin/ManageSurveys";
@@ -33,6 +36,11 @@ const App = () => (
             {/* Auth Routes */}
             <Route path="/auth/login" element={<Login />} />
             <Route path="/auth/signup" element={<Signup />} />
+            <Route path="/auth/payment-invoice" element={<PaymentInvoice />} />
+            <Route path="/auth/payment-pending" element={<PaymentPending />} />
+            
+            {/* Referral Route */}
+            <Route path="/ref/:code" element={<ReferralRedirect />} />
 
             {/* Protected Routes */}
             <Route
