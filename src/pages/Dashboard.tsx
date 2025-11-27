@@ -57,15 +57,59 @@ const Dashboard = () => {
   };
 
   const fetchSurveys = async () => {
-    const { data } = await supabase
+    if (!user) return;
+
+    // Check how many surveys the user has completed today
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const { data: todayResponses } = await supabase
+      .from("survey_responses")
+      .select("id")
+      .eq("user_id", user.id)
+      .gte("created_at", startOfToday.toISOString())
+      .lte("created_at", endOfToday.toISOString());
+
+    if (todayResponses && todayResponses.length >= 5) {
+      setSurveys([]);
+      return;
+    }
+
+    // Enforce cooldown
+    const lastFetch = localStorage.getItem("survey_last_fetch");
+    if (lastFetch) {
+      const diffHours = (Date.now() - Number(lastFetch)) / (1000 * 60 * 60);
+      if (diffHours < 3) {
+        setSurveys([]);
+        return;
+      }
+    }
+
+    // Fetch all active surveys
+    const { data: surveysData } = await supabase
       .from("surveys")
       .select("id, title, description, reward_amount, time_limit_minutes")
       .eq("is_active", true)
-      .limit(3);
+      .order("created_at", { ascending: false });
 
-    if (data) {
-      setSurveys(data);
+    let availableSurveys: Survey[] = surveysData || [];
+
+    // Remove surveys the user has already completed
+    const { data: completed } = await supabase
+      .from("survey_responses")
+      .select("survey_id")
+      .eq("user_id", user.id);
+
+    if (completed) {
+      const completedIds = new Set(completed.map((r) => r.survey_id));
+      availableSurveys = availableSurveys.filter((s) => !completedIds.has(s.id));
     }
+
+    // Only show up to 2 surveys
+    const limitedSurveys = availableSurveys.slice(0, 2);
+    setSurveys(limitedSurveys);
   };
 
   const getFirstName = () => profile?.full_name.split(" ")[0] || "User";
