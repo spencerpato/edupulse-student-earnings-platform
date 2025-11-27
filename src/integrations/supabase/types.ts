@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      payments: {
+        Row: {
+          amount: number
+          completed_at: string | null
+          created_at: string | null
+          email: string
+          full_name: string
+          id: string
+          ipn_data: Json | null
+          merchant_reference: string
+          payment_status: string
+          pesapal_tracking_id: string | null
+          phone_number: string
+          referred_by: string | null
+        }
+        Insert: {
+          amount?: number
+          completed_at?: string | null
+          created_at?: string | null
+          email: string
+          full_name: string
+          id?: string
+          ipn_data?: Json | null
+          merchant_reference: string
+          payment_status?: string
+          pesapal_tracking_id?: string | null
+          phone_number: string
+          referred_by?: string | null
+        }
+        Update: {
+          amount?: number
+          completed_at?: string | null
+          created_at?: string | null
+          email?: string
+          full_name?: string
+          id?: string
+          ipn_data?: Json | null
+          merchant_reference?: string
+          payment_status?: string
+          pesapal_tracking_id?: string | null
+          phone_number?: string
+          referred_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           approved_balance: number | null
