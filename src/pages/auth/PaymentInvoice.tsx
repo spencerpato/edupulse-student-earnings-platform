@@ -67,17 +67,28 @@ const PaymentInvoice = () => {
         merchantReference,
       }));
 
-      // In production, redirect to Pesapal checkout
-      // For now, show a message that Pesapal integration needs to be configured
-      toast.info("Payment gateway will be configured after deployment. Redirecting to setup instructions...");
+      // Call edge function to get Pesapal checkout URL
+      const { data, error: checkoutError } = await supabase.functions.invoke('pesapal-checkout', {
+        body: {
+          merchantReference,
+          amount: 100.00,
+          phoneNumber,
+          email: registrationData.email,
+          fullName: registrationData.fullName,
+        },
+      });
+
+      if (checkoutError || !data?.redirectUrl) {
+        console.error("Checkout error:", checkoutError);
+        toast.error("Failed to initiate payment. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      console.log('Redirecting to Pesapal:', data.redirectUrl);
       
-      // Simulate payment success for development (remove in production)
-      setTimeout(() => {
-        toast.success("Payment simulation complete. In production, this will redirect to Pesapal.");
-        navigate("/auth/payment-pending", { 
-          state: { merchantReference } 
-        });
-      }, 2000);
+      // Redirect to Pesapal checkout
+      window.location.href = data.redirectUrl;
 
     } catch (err) {
       if (err instanceof z.ZodError) {
