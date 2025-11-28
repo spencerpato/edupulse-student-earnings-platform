@@ -16,19 +16,42 @@ const PaymentInvoice = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [registrationFee, setRegistrationFee] = useState(100);
 
   const registrationData = location.state as {
     fullName: string;
     email: string;
     password: string;
     referredBy?: string;
+    timestamp?: number;
   };
 
   useEffect(() => {
-    if (!registrationData?.email) {
-      toast.error("Session expired. Please start registration again.");
+    // Check if registration data exists and is not expired
+    if (!registrationData || Date.now() - (registrationData.timestamp || 0) > 10 * 60 * 1000) {
+      toast.error("Registration session expired. Please sign up again.");
       navigate("/auth/signup");
+      return;
     }
+
+    // Fetch current registration fee
+    const fetchRegistrationFee = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("system_settings")
+          .select("value")
+          .eq("key", "registration_fee")
+          .single();
+
+        if (error) throw error;
+        setRegistrationFee(Number(data.value));
+      } catch (error) {
+        console.error("Error fetching registration fee:", error);
+        // Keep default value of 100 if fetch fails
+      }
+    };
+
+    fetchRegistrationFee();
   }, [registrationData, navigate]);
 
   const handlePayment = async (e: React.FormEvent) => {
@@ -48,7 +71,7 @@ const PaymentInvoice = () => {
         email: registrationData.email,
         full_name: registrationData.fullName,
         phone_number: phoneNumber,
-        amount: 100.00,
+        amount: registrationFee,
         merchant_reference: merchantReference,
         payment_status: "pending",
         referred_by: registrationData.referredBy || null,
@@ -71,7 +94,7 @@ const PaymentInvoice = () => {
       const { data, error: checkoutError } = await supabase.functions.invoke('pesapal-checkout', {
         body: {
           merchantReference,
-          amount: 100.00,
+          amount: registrationFee,
           phoneNumber,
           email: registrationData.email,
           fullName: registrationData.fullName,
@@ -114,7 +137,7 @@ const PaymentInvoice = () => {
             <CreditCard className="h-8 w-8 text-primary" />
           </div>
           <h1 className="text-2xl font-bold text-secondary mb-2">Registration Payment</h1>
-          <p className="text-muted-foreground">Complete your registration with a refundable KES 100 deposit</p>
+          <p className="text-muted-foreground">Complete your registration with a refundable KES {registrationFee} deposit</p>
         </div>
 
         <div className="bg-card rounded-2xl p-8 border border-border">
@@ -139,7 +162,7 @@ const PaymentInvoice = () => {
               <CreditCard className="h-5 w-5 text-primary mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm text-muted-foreground">Amount</p>
-                <p className="text-2xl font-bold text-primary">KES 100</p>
+                <p className="text-2xl font-bold text-primary">KES {registrationFee}</p>
                 <p className="text-xs text-muted-foreground mt-1">Refundable registration deposit</p>
               </div>
             </div>
@@ -170,7 +193,7 @@ const PaymentInvoice = () => {
               <p className="font-medium text-secondary">What happens next:</p>
               <ul className="space-y-1 text-muted-foreground list-disc list-inside">
                 <li>You'll be redirected to Pesapal for secure payment</li>
-                <li>KES 100 will be added to your wallet immediately</li>
+                <li>KES {registrationFee} will be added to your wallet immediately</li>
                 <li>This amount is fully refundable and withdrawable</li>
                 <li>Your account will be created after payment confirmation</li>
               </ul>

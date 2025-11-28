@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, FileText, Wallet, AlertTriangle, TrendingUp } from "lucide-react";
+import { Users, FileText, Wallet, AlertTriangle, TrendingUp, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const AdminDashboard = () => {
@@ -168,6 +168,18 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">Manage users and fraud flags</p>
+            </CardContent>
+          </Card>
+
+          <Card className="cursor-pointer hover:bg-accent/5 transition-colors" onClick={() => navigate("/admin/settings")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                System Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Configure platform settings</p>
             </CardContent>
           </Card>
         </div>
