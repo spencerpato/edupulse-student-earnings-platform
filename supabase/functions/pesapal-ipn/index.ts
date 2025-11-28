@@ -65,6 +65,23 @@ serve(async (req) => {
     if (OrderNotificationType === 'COMPLETED') {
       console.log('Payment completed, creating user account...');
 
+      // Get registration fee from system settings
+      const { data: settingsData, error: settingsError } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'registration_fee')
+        .single();
+
+      if (settingsError) {
+        console.error('Error fetching registration fee:', settingsError);
+        return new Response(JSON.stringify({ error: 'Failed to fetch registration fee' }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const registrationFee = Number(settingsData.value);
+
       // Create user account
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
         email: payment.email,
@@ -84,12 +101,12 @@ serve(async (req) => {
 
       console.log('User created:', authData.user.id);
 
-      // Add KES 100 to their wallet as refundable credit
+      // Add registration fee to their wallet as refundable credit
       const { error: walletError } = await supabase
         .from('profiles')
         .update({
-          approved_balance: 100.00,
-          total_earnings: 100.00,
+          approved_balance: registrationFee,
+          total_earnings: registrationFee,
         })
         .eq('id', authData.user.id);
 
@@ -99,7 +116,7 @@ serve(async (req) => {
 
       // Handle referral bonus if applicable
       if (payment.referred_by) {
-        const referralBonus = 25.00; // 25% of KES 100
+        const referralBonus = registrationFee * 0.25; // 25% of registration fee
 
         // Add referral earning record
         const { error: referralError } = await supabase

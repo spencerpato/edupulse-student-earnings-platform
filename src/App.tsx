@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import ManageSurveys from "./pages/admin/ManageSurveys";
 import ManageWithdrawals from "./pages/admin/ManageWithdrawals";
+import SystemSettings from "./pages/admin/SystemSettings";
 import TakeSurvey from "./pages/TakeSurvey";
 
 const queryClient = new QueryClient();
@@ -114,6 +115,14 @@ const App = () => (
               element={
                 <ProtectedRoute requireAdmin>
                   <ManageWithdrawals />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/settings"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <SystemSettings />
                 </ProtectedRoute>
               }
             />
