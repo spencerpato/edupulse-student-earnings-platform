@@ -47,7 +47,8 @@ serve(async (req) => {
 
     // Step 2: Register IPN URL (if not already registered)
     const ipnUrl = `https://skmhyvqlbxhsorulkfns.supabase.co/functions/v1/pesapal-ipn`;
-    
+    let notificationId = '';
+
     const ipnResponse = await fetch('https://pay.pesapal.com/v3/api/URLSetup/RegisterIPN', {
       method: 'POST',
       headers: {
@@ -64,10 +65,14 @@ serve(async (req) => {
     if (!ipnResponse.ok) {
       const errorText = await ipnResponse.text();
       console.error('IPN registration error:', errorText);
-      // Continue even if IPN registration fails - it might already be registered
+      throw new Error('Failed to register Pesapal IPN URL');
     } else {
       const ipnData = await ipnResponse.json();
       console.log('IPN registration:', ipnData);
+      notificationId = ipnData.ipn_id || '';
+      if (!notificationId) {
+        throw new Error('Invalid IPN ID returned from Pesapal');
+      }
     }
 
     // Step 3: Submit order
@@ -79,7 +84,7 @@ serve(async (req) => {
       amount: amount,
       description: 'EduPulse Registration (Refundable)',
       callback_url: callbackUrl,
-      notification_id: '', // Will be filled by Pesapal
+      notification_id: notificationId,
       billing_address: {
         email_address: email,
         phone_number: phoneNumber,
@@ -102,12 +107,20 @@ serve(async (req) => {
 
     if (!orderResponse.ok) {
       const errorText = await orderResponse.text();
-      console.error('Pesapal order submission error:', errorText);
+      console.error('Pesapal order submission error (HTTP error):', errorText);
       throw new Error('Failed to submit order to Pesapal');
     }
 
     const orderResult = await orderResponse.json();
     console.log('Pesapal order response:', orderResult);
+
+    if (orderResult.status !== '200' || orderResult.error) {
+      console.error('Pesapal order error payload:', orderResult);
+      const message =
+        (orderResult.error && (orderResult.error.message || orderResult.error.code)) ||
+        'Failed to submit order to Pesapal';
+      throw new Error(message);
+    }
 
     // Return the redirect URL
     return new Response(
