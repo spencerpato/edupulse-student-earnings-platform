@@ -2,3 +2,6 @@ project_id = "skmhyvqlbxhsorulkfns"
 
 [functions.pesapal-ipn]
 verify_jwt = false
+
+[functions.pesapal-checkout]
+verify_jwt = false
