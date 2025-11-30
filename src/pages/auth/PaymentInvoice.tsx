@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { CreditCard, Mail, User, Phone } from "lucide-react";
+import { CreditCard, Mail, User, Phone, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +23,7 @@ const PaymentInvoice = () => {
   const navigate = useNavigate();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
   const [error, setError] = useState("");
   const [registrationFee, setRegistrationFee] = useState(100);
 
@@ -88,6 +89,7 @@ const PaymentInvoice = () => {
       }
 
       toast.info("Sending M-Pesa prompt to your phone...");
+      setProcessingPayment(true);
 
       const { data, error: paymentError } = await supabase.functions.invoke('lipana-payment', {
         body: {
@@ -101,15 +103,41 @@ const PaymentInvoice = () => {
         },
       });
 
-      if (paymentError || !data?.success) {
+      if (paymentError) {
         console.error("Payment error:", paymentError);
-        toast.error(data?.error || "Failed to initiate payment. Please try again.");
+        toast.error("Failed to process payment. Please try again.");
         setLoading(false);
+        setProcessingPayment(false);
         return;
       }
 
-      toast.success("M-Pesa prompt sent! Please enter your PIN on your phone.");
-      
+      if (data?.paymentComplete && data?.session) {
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+        
+        toast.success("Payment successful! Welcome to EduPulse.");
+        localStorage.removeItem("pending_registration");
+        navigate("/");
+        return;
+      }
+
+      if (data?.paymentComplete && data?.autoLoginFailed) {
+        toast.success("Payment successful! Please log in.");
+        localStorage.removeItem("pending_registration");
+        navigate("/auth/login");
+        return;
+      }
+
+      if (!data?.success) {
+        toast.error(data?.error || "Payment not completed. Please try again.");
+        setLoading(false);
+        setProcessingPayment(false);
+        return;
+      }
+
+      toast.info("Payment still processing. Please wait...");
       navigate("/auth/payment-pending", {
         state: {
           merchantReference,
@@ -126,11 +154,29 @@ const PaymentInvoice = () => {
         toast.error("An error occurred. Please try again.");
       }
       setLoading(false);
+      setProcessingPayment(false);
     }
   };
 
   if (!registrationData) {
     return null;
+  }
+
+  if (processingPayment) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="text-center max-w-md">
+          <Loader2 className="h-16 w-16 animate-spin text-primary mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-secondary mb-2">Processing Payment</h1>
+          <p className="text-muted-foreground mb-4">
+            Please enter your M-Pesa PIN on your phone to complete the payment.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            This may take up to 30 seconds. Do not close this page.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
