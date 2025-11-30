@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { CreditCard, Mail, User, Phone, Loader2 } from "lucide-react";
+import { CreditCard, Mail, User, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { z } from "zod";
+import PaymentStatus from "@/components/payment/PaymentStatus";
 
 const phoneSchema = z.string().regex(/^(254|0)[17]\d{8}$/, "Enter valid M-Pesa number (e.g., 0712345678 or 254712345678)");
 
@@ -18,14 +19,25 @@ const formatPhoneNumber = (phone: string): string => {
   return formatted;
 };
 
+type PaymentStatusType = 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'CANCELLED' | 'FAILED' | 'EXPIRED' | 'ERROR' | 'CHECKING';
+
+const POLL_INTERVAL = 2000;
+const MAX_POLL_TIME = 30000;
+const FINAL_STATUSES = ['SUCCESS', 'CANCELLED', 'FAILED', 'EXPIRED', 'ERROR'];
+
 const PaymentInvoice = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [loading, setLoading] = useState(false);
-  const [processingPayment, setProcessingPayment] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatusType | null>(null);
+  const [statusMessage, setStatusMessage] = useState("");
   const [error, setError] = useState("");
   const [registrationFee, setRegistrationFee] = useState(100);
+  
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<number>(0);
+  const paymentDataRef = useRef<{ merchantReference: string; paymentId: string } | null>(null);
 
   const registrationData = location.state as {
     fullName: string;
@@ -34,6 +46,94 @@ const PaymentInvoice = () => {
     referredBy?: string;
     timestamp?: number;
   };
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
+
+  const verifyPayment = useCallback(async () => {
+    if (!paymentDataRef.current) return;
+
+    const elapsed = Date.now() - startTimeRef.current;
+    
+    if (elapsed >= MAX_POLL_TIME) {
+      stopPolling();
+      setPaymentStatus('EXPIRED');
+      setStatusMessage('Payment session expired. Please try again.');
+      return;
+    }
+
+    try {
+      const { data, error: verifyError } = await supabase.functions.invoke('verify-payment', {
+        body: {
+          merchantReference: paymentDataRef.current.merchantReference,
+          paymentId: paymentDataRef.current.paymentId,
+        },
+      });
+
+      console.log('Verification response:', data);
+
+      if (verifyError) {
+        console.error('Verification error:', verifyError);
+        return;
+      }
+
+      const status = data?.status as PaymentStatusType;
+
+      if (status === 'SUCCESS' && data?.session) {
+        stopPolling();
+        setPaymentStatus('SUCCESS');
+        setStatusMessage('Payment successful! Logging you in...');
+        
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+        
+        localStorage.removeItem("pending_registration");
+        
+        setTimeout(() => {
+          navigate("/");
+        }, 1500);
+        return;
+      }
+
+      if (status === 'SUCCESS' && data?.autoLoginFailed) {
+        stopPolling();
+        setPaymentStatus('SUCCESS');
+        setStatusMessage('Payment successful! Please log in to continue.');
+        localStorage.removeItem("pending_registration");
+        return;
+      }
+
+      if (FINAL_STATUSES.includes(status)) {
+        stopPolling();
+        setPaymentStatus(status);
+        setStatusMessage(data?.message || '');
+        return;
+      }
+
+      if (status === 'PROCESSING') {
+        setPaymentStatus('PROCESSING');
+        setStatusMessage('Payment is being processed...');
+      } else if (status === 'PENDING') {
+        setPaymentStatus('PENDING');
+        setStatusMessage('Waiting for payment...');
+      }
+
+    } catch (err) {
+      console.error('Verification poll error:', err);
+    }
+  }, [navigate, stopPolling]);
+
+  useEffect(() => {
+    return () => {
+      stopPolling();
+    };
+  }, [stopPolling]);
 
   useEffect(() => {
     if (!registrationData || Date.now() - (registrationData.timestamp || 0) > 10 * 60 * 1000) {
@@ -64,6 +164,7 @@ const PaymentInvoice = () => {
     e.preventDefault();
     setError("");
     setLoading(true);
+    stopPolling();
 
     try {
       phoneSchema.parse(phoneNumber);
@@ -88,8 +189,8 @@ const PaymentInvoice = () => {
         return;
       }
 
-      toast.info("Sending M-Pesa prompt to your phone...");
-      setProcessingPayment(true);
+      setPaymentStatus('CHECKING');
+      setStatusMessage('Sending M-Pesa prompt to your phone...');
 
       const { data, error: paymentError } = await supabase.functions.invoke('lipana-payment', {
         body: {
@@ -103,79 +204,70 @@ const PaymentInvoice = () => {
         },
       });
 
-      if (paymentError) {
-        console.error("Payment error:", paymentError);
-        toast.error("Failed to process payment. Please try again.");
-        setLoading(false);
-        setProcessingPayment(false);
+      console.log('Payment initiation response:', data);
+
+      if (paymentError || !data?.success) {
+        console.error("Payment error:", paymentError || data?.error);
+        setPaymentStatus('ERROR');
+        setStatusMessage(data?.error || 'Failed to send M-Pesa prompt. Please try again.');
         return;
       }
 
-      if (data?.paymentComplete && data?.session) {
-        await supabase.auth.setSession({
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
-        });
-        
-        toast.success("Payment successful! Welcome to EduPulse.");
-        localStorage.removeItem("pending_registration");
-        navigate("/");
-        return;
-      }
+      paymentDataRef.current = {
+        merchantReference,
+        paymentId: data.paymentId,
+      };
 
-      if (data?.paymentComplete && data?.autoLoginFailed) {
-        toast.success("Payment successful! Please log in.");
-        localStorage.removeItem("pending_registration");
-        navigate("/auth/login");
-        return;
-      }
-
-      if (!data?.success) {
-        toast.error(data?.error || "Payment not completed. Please try again.");
-        setLoading(false);
-        setProcessingPayment(false);
-        return;
-      }
-
-      toast.info("Payment still processing. Please wait...");
-      navigate("/auth/payment-pending", {
-        state: {
-          merchantReference,
-          paymentId: data.paymentId,
-          email: registrationData.email,
-        }
-      });
+      setPaymentStatus('PENDING');
+      setStatusMessage('Please enter your M-Pesa PIN on your phone to complete the payment.');
+      
+      startTimeRef.current = Date.now();
+      pollingRef.current = setInterval(verifyPayment, POLL_INTERVAL);
+      
+      verifyPayment();
 
     } catch (err) {
       if (err instanceof z.ZodError) {
         setError(err.errors[0].message);
+        setPaymentStatus(null);
+        setLoading(false);
       } else {
         console.error("Payment error:", err);
-        toast.error("An error occurred. Please try again.");
+        setPaymentStatus('ERROR');
+        setStatusMessage('An error occurred. Please try again.');
       }
-      setLoading(false);
-      setProcessingPayment(false);
     }
+  };
+
+  const handleRetry = () => {
+    stopPolling();
+    paymentDataRef.current = null;
+    setPaymentStatus(null);
+    setStatusMessage("");
+    setLoading(false);
+    setPhoneNumber("");
+  };
+
+  const handleLogin = () => {
+    navigate("/auth/login");
+  };
+
+  const handleContinue = () => {
+    navigate("/");
   };
 
   if (!registrationData) {
     return null;
   }
 
-  if (processingPayment) {
+  if (paymentStatus) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <Loader2 className="h-16 w-16 animate-spin text-primary mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-secondary mb-2">Processing Payment</h1>
-          <p className="text-muted-foreground mb-4">
-            Please enter your M-Pesa PIN on your phone to complete the payment.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            This may take up to 30 seconds. Do not close this page.
-          </p>
-        </div>
-      </div>
+      <PaymentStatus
+        status={paymentStatus}
+        message={statusMessage}
+        onRetry={handleRetry}
+        onLogin={paymentStatus === 'SUCCESS' ? handleContinue : handleLogin}
+      />
     );
   }
 
@@ -244,9 +336,8 @@ const PaymentInvoice = () => {
               <ul className="space-y-1 text-muted-foreground list-disc list-inside">
                 <li>You'll receive an M-Pesa prompt on your phone</li>
                 <li>Enter your M-Pesa PIN to complete payment</li>
-                <li>KES {registrationFee} will be added to your wallet immediately</li>
+                <li>KES {registrationFee} will be added to your wallet</li>
                 <li>This amount is fully refundable and withdrawable</li>
-                <li>Your account will be created after payment confirmation</li>
               </ul>
             </div>
 
