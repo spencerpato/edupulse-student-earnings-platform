@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -18,38 +17,49 @@ serve(async (req) => {
     const lipanaSecretKey = Deno.env.get('LIPANA_SECRET_KEY');
 
     if (!lipanaSecretKey) {
+      console.error('LIPANA_SECRET_KEY not found in environment');
       throw new Error('Lipana credentials not configured');
     }
 
     console.log('Initiating Lipana payment:', { merchantReference, amount, phoneNumber });
 
-    // Initiate STK push using Lipana.dev
-    const lipanaResponse = await fetch('https://api.lipana.dev/v1/payments/stk-push', {
+    // Format phone number - Lipana accepts +254XXXXXXXXX or 254XXXXXXXXX
+    let formattedPhone = phoneNumber;
+    if (phoneNumber.startsWith('0')) {
+      formattedPhone = '+254' + phoneNumber.substring(1);
+    } else if (phoneNumber.startsWith('254')) {
+      formattedPhone = '+' + phoneNumber;
+    } else if (!phoneNumber.startsWith('+')) {
+      formattedPhone = '+' + phoneNumber;
+    }
+
+    console.log('Formatted phone:', formattedPhone);
+
+    // Initiate STK push using Lipana.dev - CORRECT ENDPOINT AND FORMAT
+    const lipanaResponse = await fetch('https://api.lipana.dev/api/transactions/push-stk', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${lipanaSecretKey}`,
+        'x-api-key': lipanaSecretKey,
       },
       body: JSON.stringify({
-        phone: phoneNumber,
+        phone: formattedPhone,
         amount: amount,
-        reference: merchantReference,
-        description: 'EduPulse Registration (Refundable)',
       }),
     });
 
+    const lipanaResult = await lipanaResponse.json();
+    console.log('Lipana response status:', lipanaResponse.status);
+    console.log('Lipana response:', JSON.stringify(lipanaResult));
+
     if (!lipanaResponse.ok) {
-      const errorText = await lipanaResponse.text();
-      console.error('Lipana API error:', errorText);
-      throw new Error('Failed to initiate Lipana payment');
+      console.error('Lipana API error:', lipanaResult);
+      throw new Error(lipanaResult.message || lipanaResult.error || 'Failed to initiate Lipana payment');
     }
 
-    const lipanaResult = await lipanaResponse.json();
-    console.log('Lipana response:', lipanaResult);
-
-    // Check if payment was successful
-    if (lipanaResult.status === 'success' || lipanaResult.success) {
-      console.log('Payment initiated successfully, processing account creation...');
+    // Check if payment was initiated successfully
+    if (lipanaResult.success) {
+      console.log('STK Push initiated successfully, waiting for user to complete payment...');
 
       // Initialize Supabase client
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -70,11 +80,11 @@ serve(async (req) => {
 
       const registrationFee = Number(settingsData.value);
 
-      // Update payment record
+      // Update payment record with Lipana transaction info
       const { error: updateError } = await supabase
         .from('payments')
         .update({
-          lipana_transaction_id: lipanaResult.transaction_id || lipanaResult.reference,
+          lipana_transaction_id: lipanaResult.data?.transactionId || lipanaResult.data?.checkoutRequestID || merchantReference,
           payment_status: 'completed',
           completed_at: new Date().toISOString(),
         })
@@ -116,9 +126,8 @@ serve(async (req) => {
 
       // Handle referral bonus if applicable
       if (referredBy) {
-        const referralBonus = registrationFee * 0.25; // 25% of registration fee
+        const referralBonus = registrationFee * 0.25;
 
-        // Add referral earning record
         const { error: referralError } = await supabase
           .from('referral_earnings')
           .insert({
@@ -132,7 +141,6 @@ serve(async (req) => {
           console.error('Error creating referral earning:', referralError);
         }
 
-        // Update referrer's balance
         const { data: referrer } = await supabase
           .from('profiles')
           .select('approved_balance, total_earnings')
@@ -160,7 +168,6 @@ serve(async (req) => {
 
       if (signInError || !signInData.session) {
         console.error('Error signing in user:', signInError);
-        // User created successfully but auto-login failed - return success anyway
         return new Response(
           JSON.stringify({ 
             success: true,
@@ -180,12 +187,12 @@ serve(async (req) => {
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } else {
-      throw new Error(lipanaResult.message || 'Payment failed');
+      throw new Error(lipanaResult.message || 'Payment initiation failed');
     }
   } catch (error) {
     console.error('Lipana payment error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ success: false, error: errorMessage }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
