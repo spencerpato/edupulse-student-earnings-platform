@@ -126,7 +126,9 @@ const ManageSurveys = () => {
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Reward:</span>
-                    <span className="font-semibold ml-2">Ksh {survey.reward_amount}</span>
+                    <span className="font-semibold ml-2">
+                      {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(survey.reward_amount)}
+                    </span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Time Limit:</span>

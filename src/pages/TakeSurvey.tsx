@@ -191,7 +191,9 @@ const TakeSurvey = () => {
               </Button>
               <div>
                 <h1 className="text-xl font-bold text-secondary">{survey.title}</h1>
-                <p className="text-sm text-muted-foreground">Reward: Ksh {survey.reward_amount}</p>
+                <p className="text-sm text-muted-foreground">
+                  Reward: {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(survey.reward_amount)}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-primary">

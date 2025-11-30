@@ -84,34 +84,43 @@ const PaymentInvoice = () => {
         return;
       }
 
-      // Store registration data and merchant reference in localStorage for the callback
-      localStorage.setItem("pending_registration", JSON.stringify({
-        ...registrationData,
-        merchantReference,
-      }));
+      toast.info("Processing payment... Please check your phone for the M-Pesa prompt.");
 
-      // Call edge function to get Pesapal checkout URL
-      const { data, error: checkoutError } = await supabase.functions.invoke('pesapal-checkout', {
+      // Call edge function to initiate Lipana STK push
+      const { data, error: paymentError } = await supabase.functions.invoke('lipana-payment', {
         body: {
           merchantReference,
           amount: registrationFee,
           phoneNumber,
           email: registrationData.email,
           fullName: registrationData.fullName,
+          password: registrationData.password,
+          referredBy: registrationData.referredBy || null,
         },
       });
 
-      if (checkoutError || !data?.redirectUrl) {
-        console.error("Checkout error:", checkoutError);
-        toast.error("Failed to initiate payment. Please try again.");
+      if (paymentError || !data?.success) {
+        console.error("Payment error:", paymentError);
+        toast.error(data?.error || "Failed to initiate payment. Please try again.");
         setLoading(false);
         return;
       }
 
-      console.log('Redirecting to Pesapal:', data.redirectUrl);
+      // Payment successful, set session and redirect
+      if (data.session) {
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+      }
+
+      toast.success("Payment successful! Welcome to EduPulse.");
       
-      // Redirect to Pesapal checkout
-      window.location.href = data.redirectUrl;
+      // Clear any stored registration data
+      localStorage.removeItem("pending_registration");
+      
+      // Redirect to dashboard
+      navigate("/");
 
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -120,7 +129,6 @@ const PaymentInvoice = () => {
         console.error("Payment error:", err);
         toast.error("An error occurred. Please try again.");
       }
-    } finally {
       setLoading(false);
     }
   };
@@ -192,7 +200,8 @@ const PaymentInvoice = () => {
             <div className="bg-muted/50 rounded-lg p-4 space-y-2 text-sm">
               <p className="font-medium text-secondary">What happens next:</p>
               <ul className="space-y-1 text-muted-foreground list-disc list-inside">
-                <li>You'll be redirected to Pesapal for secure payment</li>
+                <li>You'll receive an M-Pesa prompt on your phone</li>
+                <li>Enter your M-Pesa PIN to complete payment</li>
                 <li>KES {registrationFee} will be added to your wallet immediately</li>
                 <li>This amount is fully refundable and withdrawable</li>
                 <li>Your account will be created after payment confirmation</li>

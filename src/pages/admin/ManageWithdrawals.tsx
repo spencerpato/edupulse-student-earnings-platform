@@ -112,7 +112,9 @@ const ManageWithdrawals = () => {
                     <div className="space-y-1">
                       <p className="text-sm">
                         <span className="text-muted-foreground">Amount:</span>
-                        <span className="font-semibold ml-2">Ksh {withdrawal.amount}</span>
+                        <span className="font-semibold ml-2">
+                          {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(withdrawal.amount)}
+                        </span>
                       </p>
                       <p className="text-sm">
                         <span className="text-muted-foreground">Method:</span>

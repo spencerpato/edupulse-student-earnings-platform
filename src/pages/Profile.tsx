@@ -70,7 +70,7 @@ const Profile = () => {
   };
 
   const shareReferralLink = async () => {
-    const referralLink = `${window.location.origin}/auth/signup?ref=${profile?.referral_code}`;
+    const referralLink = `${window.location.origin}/ref/${profile?.referral_code}`;
     
     if (navigator.share) {
       try {
@@ -135,8 +135,10 @@ const Profile = () => {
           
             <div className="flex items-center justify-between mb-3">
               <div>
-                <div className="text-sm text-muted-foreground">Referral Earnings:</div>
-                <div className="text-2xl font-bold text-secondary">Ksh {referralEarnings.toFixed(2)}</div>
+              <div className="text-sm text-muted-foreground">Referral Earnings:</div>
+                <div className="text-2xl font-bold text-secondary">
+                  {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(referralEarnings)}
+                </div>
               </div>
             <Button
               onClick={shareReferralLink}

@@ -119,7 +119,9 @@ const AdminDashboard = () => {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">Ksh {stats.totalPayouts.toFixed(2)}</div>
+              <div className="text-2xl font-bold">
+                {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(stats.totalPayouts)}
+              </div>
             </CardContent>
           </Card>
 

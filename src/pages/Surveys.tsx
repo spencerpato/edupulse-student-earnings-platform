@@ -209,7 +209,7 @@ const Surveys = () => {
           <div key={survey.id} className="bg-card rounded-2xl p-6 border border-border">
             <div className="mb-4">
               <span className="inline-block px-4 py-1.5 bg-primary/10 text-primary font-bold rounded-full text-sm mb-3">
-                Ksh {survey.reward_amount}
+                {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(survey.reward_amount)}
               </span>
               <h3 className="text-xl font-bold text-secondary mb-2">{survey.title}</h3>
               <p className="text-muted-foreground text-sm mb-3">{survey.description}</p>
