@@ -144,7 +144,7 @@ const Dashboard = () => {
             <span className="font-medium">Wallet Balance</span>
           </div>
           <div className="text-4xl font-bold text-secondary mb-1">
-            Ksh {profile.approved_balance.toFixed(2)}
+            {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(profile.approved_balance)}
           </div>
           <div className="text-sm text-muted-foreground">Approved Funds</div>
         </div>
@@ -178,7 +178,9 @@ const Dashboard = () => {
                       <h4 className="font-bold text-secondary mb-1">{survey.title}</h4>
                       <p className="text-sm text-muted-foreground mb-2">Est. {survey.time_limit_minutes} min</p>
                       <div className="flex items-center justify-between">
-                        <span className="text-primary font-bold">Ksh {survey.reward_amount} Reward</span>
+                        <span className="text-primary font-bold">
+                          {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(survey.reward_amount)} Reward
+                        </span>
                         <Button
                           onClick={() => navigate(`/surveys/${survey.id}`)}
                           className="bg-primary hover:bg-primary/90 text-primary-foreground"

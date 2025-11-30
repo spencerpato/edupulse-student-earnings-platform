@@ -23,9 +23,9 @@ export type Database = {
           full_name: string
           id: string
           ipn_data: Json | null
+          lipana_transaction_id: string | null
           merchant_reference: string
           payment_status: string
-          pesapal_tracking_id: string | null
           phone_number: string
           referred_by: string | null
         }
@@ -37,9 +37,9 @@ export type Database = {
           full_name: string
           id?: string
           ipn_data?: Json | null
+          lipana_transaction_id?: string | null
           merchant_reference: string
           payment_status?: string
-          pesapal_tracking_id?: string | null
           phone_number: string
           referred_by?: string | null
         }
@@ -51,9 +51,9 @@ export type Database = {
           full_name?: string
           id?: string
           ipn_data?: Json | null
+          lipana_transaction_id?: string | null
           merchant_reference?: string
           payment_status?: string
-          pesapal_tracking_id?: string | null
           phone_number?: string
           referred_by?: string | null
         }

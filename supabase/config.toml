@@ -1,7 +1,4 @@
 project_id = "skmhyvqlbxhsorulkfns"
 
-[functions.pesapal-ipn]
-verify_jwt = false
-
-[functions.pesapal-checkout]
+[functions.lipana-payment]
 verify_jwt = false

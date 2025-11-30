@@ -83,7 +83,7 @@ const Wallet = () => {
     }
 
     if (!hasWithdrawn && amount < minimumFirstWithdrawal) {
-      toast.error("Your first withdrawal must be at least Ksh 3,100. Future withdrawals will have no minimum amount.");
+      toast.error(`Your first withdrawal must be at least ${new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(minimumFirstWithdrawal)}. Future withdrawals will have no minimum amount.`);
       return;
     }
 
@@ -154,7 +154,7 @@ const Wallet = () => {
         <div className="bg-card rounded-2xl p-6 text-center border border-border">
           <div className="text-muted-foreground mb-2">Total Balance</div>
           <div className="text-4xl font-bold text-secondary">
-            Ksh {totalBalance.toFixed(2)}
+            {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(totalBalance)}
           </div>
         </div>
 
@@ -170,7 +170,9 @@ const Wallet = () => {
                 <div className="text-sm text-muted-foreground">Withdrawable</div>
               </div>
             </div>
-            <div className="text-xl font-bold text-secondary">Ksh {approvedBalance.toFixed(2)}</div>
+            <div className="text-xl font-bold text-secondary">
+              {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(approvedBalance)}
+            </div>
           </div>
 
           {heldBalance > 0 && (
@@ -185,7 +187,9 @@ const Wallet = () => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <div className="text-xl font-bold text-secondary">Ksh {heldBalance.toFixed(2)}</div>
+                <div className="text-xl font-bold text-secondary">
+                  {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(heldBalance)}
+                </div>
                 <Info className="h-4 w-4 text-muted-foreground" />
               </div>
             </div>
@@ -196,7 +200,9 @@ const Wallet = () => {
         <div className="bg-card rounded-2xl p-6 border border-border space-y-4">
           <div className="flex items-center justify-between">
             <span className="font-semibold text-secondary">Withdraw Amount</span>
-            <span className="text-sm text-muted-foreground">Available: Ksh {approvedBalance.toFixed(2)}</span>
+            <span className="text-sm text-muted-foreground">
+              Available: {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(approvedBalance)}
+            </span>
           </div>
           <div className="flex items-center gap-3">
             <input
@@ -216,7 +222,7 @@ const Wallet = () => {
           </div>
           <p className="text-center text-sm text-muted-foreground">
             {!hasWithdrawn
-              ? "Your first withdrawal must be at least Ksh 3,100. Future withdrawals will have no minimum amount."
+              ? `Your first withdrawal must be at least ${new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(3100)}. Future withdrawals will have no minimum amount.`
               : "You can withdraw any amount up to your approved balance."}
           </p>
         </div>
@@ -236,7 +242,9 @@ const Wallet = () => {
                       <ArrowUp className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <div className="font-bold text-secondary">Ksh {withdrawal.amount.toFixed(2)}</div>
+                      <div className="font-bold text-secondary">
+                        {new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(withdrawal.amount)}
+                      </div>
                       <div className="text-sm text-muted-foreground">
                         {new Date(withdrawal.created_at).toLocaleDateString("en-US", { 
                           year: "numeric", 
