@@ -22,16 +22,7 @@ const Login = () => {
   const { signIn, user, isAdmin } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (user) {
-      // Navigate based on admin status
-      if (isAdmin) {
-        navigate("/admin");
-      } else {
-        navigate("/");
-      }
-    }
-  }, [user, isAdmin, navigate]);
+  // Removed redundant navigation logic - AuthContext.signIn handles navigation
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -26,6 +26,11 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
     return <Navigate to="/" />;
   }
 
+  // Redirect regular users away from admin routes
+  if (!requireAdmin && isAdmin && window.location.pathname === "/") {
+    return <Navigate to="/admin" />;
+  }
+
   return <>{children}</>;
 };
 
