@@ -31,10 +31,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       
-      // Check admin status when session changes
+      // Check admin status when session changes, but don't show toasts
       if (session?.user) {
         setTimeout(() => {
-          checkAdminStatus(session.user.id);
+          checkAdminStatus(session.user.id, false);
         }, 0);
       } else {
         setIsAdmin(false);
@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        checkAdminStatus(session.user.id);
+        checkAdminStatus(session.user.id, false);
       }
       setLoading(false);
     });
@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const checkAdminStatus = async (userId: string) => {
+  const checkAdminStatus = async (userId: string, showToast: boolean = true) => {
     try {
       const { data, error } = await supabase
         .from("user_roles")
@@ -65,15 +65,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (!error && data) {
         setIsAdmin(true);
-        toast.success("Welcome Admin!");
+        if (showToast) {
+          toast.success("Welcome Admin!");
+        }
       } else {
         setIsAdmin(false);
-        toast.success("Welcome back!");
+        if (showToast) {
+          toast.success("Welcome back!");
+        }
       }
     } catch (error) {
       console.error("Error checking admin status:", error);
       setIsAdmin(false);
-      toast.success("Welcome back!");
+      if (showToast) {
+        toast.success("Welcome back!");
+      }
     }
   };
 
@@ -130,15 +136,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (!roleError && roleData) {
           setIsAdmin(true);
           toast.success("Welcome Admin!");
-          navigate("/admin");
+          // Admin users go to admin dashboard
+          setTimeout(() => navigate("/admin"), 100);
         } else {
           setIsAdmin(false);
           toast.success("Welcome back!");
-          navigate("/");
+          // Regular users go to main dashboard
+          setTimeout(() => navigate("/"), 100);
         }
-      } else {
-        // Fallback navigation if user is not available for some reason
-        navigate("/");
       }
 
       return { error: null };
