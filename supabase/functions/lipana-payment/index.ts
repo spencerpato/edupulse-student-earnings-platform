@@ -23,7 +23,6 @@ serve(async (req) => {
 
     console.log('Initiating Lipana payment:', { merchantReference, amount, phoneNumber });
 
-    // Format phone number - Lipana accepts +254XXXXXXXXX or 254XXXXXXXXX
     let formattedPhone = phoneNumber;
     if (phoneNumber.startsWith('0')) {
       formattedPhone = '+254' + phoneNumber.substring(1);
@@ -35,7 +34,6 @@ serve(async (req) => {
 
     console.log('Formatted phone:', formattedPhone);
 
-    // Initiate STK push using Lipana.dev - CORRECT ENDPOINT
     const lipanaResponse = await fetch('https://api.lipana.dev/v1/transactions/push-stk', {
       method: 'POST',
       headers: {
@@ -57,137 +55,46 @@ serve(async (req) => {
       throw new Error(lipanaResult.message || lipanaResult.error || 'Failed to initiate Lipana payment');
     }
 
-    // Check if payment was initiated successfully
     if (lipanaResult.success) {
-      console.log('STK Push initiated successfully, waiting for user to complete payment...');
+      console.log('STK Push initiated successfully');
 
-      // Initialize Supabase client
       const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
       const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-      // Get registration fee from system settings
-      const { data: settingsData, error: settingsError } = await supabase
-        .from('system_settings')
-        .select('value')
-        .eq('key', 'registration_fee')
-        .single();
+      const paymentId = lipanaResult.data?.transactionId || lipanaResult.data?.checkoutRequestID || lipanaResult.data?.paymentId;
+      
+      console.log('Lipana paymentId:', paymentId);
 
-      if (settingsError) {
-        console.error('Error fetching registration fee:', settingsError);
-        throw new Error('Failed to fetch registration fee');
-      }
-
-      const registrationFee = Number(settingsData.value);
-
-      // Update payment record with Lipana transaction info
       const { error: updateError } = await supabase
         .from('payments')
         .update({
-          lipana_transaction_id: lipanaResult.data?.transactionId || lipanaResult.data?.checkoutRequestID || merchantReference,
-          payment_status: 'completed',
-          completed_at: new Date().toISOString(),
+          lipana_transaction_id: paymentId,
+          payment_status: 'awaiting_confirmation',
+          ipn_data: {
+            password: password,
+            fullName: fullName,
+            email: email,
+            referredBy: referredBy,
+          }
         })
         .eq('merchant_reference', merchantReference);
 
       if (updateError) {
-        console.error('Error updating payment:', updateError);
-      }
-
-      // Create user account
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: email,
-        password: password,
-        email_confirm: true,
-        user_metadata: {
-          full_name: fullName,
-        },
-      });
-
-      if (authError || !authData.user) {
-        console.error('Error creating user:', authError);
-        throw new Error('Failed to create user account');
-      }
-
-      console.log('User created:', authData.user.id);
-
-      // Add registration fee to their wallet as refundable credit
-      const { error: walletError } = await supabase
-        .from('profiles')
-        .update({
-          approved_balance: registrationFee,
-          total_earnings: registrationFee,
-        })
-        .eq('id', authData.user.id);
-
-      if (walletError) {
-        console.error('Error updating wallet:', walletError);
-      }
-
-      // Handle referral bonus if applicable
-      if (referredBy) {
-        const referralBonus = registrationFee * 0.25;
-
-        const { error: referralError } = await supabase
-          .from('referral_earnings')
-          .insert({
-            referrer_id: referredBy,
-            referred_user_id: authData.user.id,
-            amount: referralBonus,
-            is_withdrawable: true,
-          });
-
-        if (referralError) {
-          console.error('Error creating referral earning:', referralError);
-        }
-
-        const { data: referrer } = await supabase
-          .from('profiles')
-          .select('approved_balance, total_earnings')
-          .eq('id', referredBy)
-          .single();
-
-        if (referrer) {
-          await supabase
-            .from('profiles')
-            .update({
-              approved_balance: (referrer.approved_balance || 0) + referralBonus,
-              total_earnings: (referrer.total_earnings || 0) + referralBonus,
-            })
-            .eq('id', referredBy);
-        }
-
-        console.log('Referral bonus processed');
-      }
-
-      // Sign in the user to get session
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: email,
-        password: password,
-      });
-
-      if (signInError || !signInData.session) {
-        console.error('Error signing in user:', signInError);
-        return new Response(
-          JSON.stringify({ 
-            success: true,
-            autoLoginFailed: true,
-            message: 'Payment successful and account created. Please log in manually.'
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.error('Error updating payment record:', updateError);
       }
 
       return new Response(
         JSON.stringify({ 
           success: true,
-          session: signInData.session,
-          message: 'Payment successful and account created'
+          paymentId: paymentId,
+          merchantReference: merchantReference,
+          message: 'STK push sent. Please complete payment on your phone.'
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } else {
-      throw new Error(lipanaResult.message || 'Payment initiation failed');
+      throw new Error(lipanaResult.message || 'Failed to initiate STK push');
     }
   } catch (error) {
     console.error('Lipana payment error:', error);

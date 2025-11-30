@@ -35,14 +35,12 @@ const PaymentInvoice = () => {
   };
 
   useEffect(() => {
-    // Check if registration data exists and is not expired
     if (!registrationData || Date.now() - (registrationData.timestamp || 0) > 10 * 60 * 1000) {
       toast.error("Registration session expired. Please sign up again.");
       navigate("/auth/signup");
       return;
     }
 
-    // Fetch current registration fee
     const fetchRegistrationFee = async () => {
       try {
         const { data, error } = await supabase
@@ -55,7 +53,6 @@ const PaymentInvoice = () => {
         setRegistrationFee(Number(data.value));
       } catch (error) {
         console.error("Error fetching registration fee:", error);
-        // Keep default value of 100 if fetch fails
       }
     };
 
@@ -68,16 +65,11 @@ const PaymentInvoice = () => {
     setLoading(true);
 
     try {
-      // Validate phone number
       phoneSchema.parse(phoneNumber);
 
-      // Format phone number to 254XXXXXXXXX format for Lipana API
       const formattedPhone = formatPhoneNumber(phoneNumber);
-
-      // Generate merchant reference
       const merchantReference = `EDUPULSE-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-      // Store payment record in database
       const { error: dbError } = await supabase.from("payments").insert({
         email: registrationData.email,
         full_name: registrationData.fullName,
@@ -95,9 +87,8 @@ const PaymentInvoice = () => {
         return;
       }
 
-      toast.info("Processing payment... Please check your phone for the M-Pesa prompt.");
+      toast.info("Sending M-Pesa prompt to your phone...");
 
-      // Call edge function to initiate Lipana STK push
       const { data, error: paymentError } = await supabase.functions.invoke('lipana-payment', {
         body: {
           merchantReference,
@@ -117,21 +108,15 @@ const PaymentInvoice = () => {
         return;
       }
 
-      // Payment successful, set session and redirect
-      if (data.session) {
-        await supabase.auth.setSession({
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
-        });
-      }
-
-      toast.success("Payment successful! Welcome to EduPulse.");
+      toast.success("M-Pesa prompt sent! Please enter your PIN on your phone.");
       
-      // Clear any stored registration data
-      localStorage.removeItem("pending_registration");
-      
-      // Redirect to dashboard
-      navigate("/");
+      navigate("/auth/payment-pending", {
+        state: {
+          merchantReference,
+          paymentId: data.paymentId,
+          email: registrationData.email,
+        }
+      });
 
     } catch (err) {
       if (err instanceof z.ZodError) {
