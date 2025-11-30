@@ -35,8 +35,8 @@ serve(async (req) => {
 
     console.log('Formatted phone:', formattedPhone);
 
-    // Initiate STK push using Lipana.dev - CORRECT ENDPOINT AND FORMAT
-    const lipanaResponse = await fetch('https://api.lipana.dev/api/transactions/push-stk', {
+    // Initiate STK push using Lipana.dev - CORRECT ENDPOINT
+    const lipanaResponse = await fetch('https://api.lipana.dev/v1/transactions/push-stk', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
