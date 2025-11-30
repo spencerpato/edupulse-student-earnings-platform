@@ -10,6 +10,14 @@ import { z } from "zod";
 
 const phoneSchema = z.string().regex(/^(254|0)[17]\d{8}$/, "Enter valid M-Pesa number (e.g., 0712345678 or 254712345678)");
 
+const formatPhoneNumber = (phone: string): string => {
+  let formatted = phone.replace(/\s+/g, '').replace(/[^0-9]/g, '');
+  if (formatted.startsWith('0')) {
+    formatted = '254' + formatted.substring(1);
+  }
+  return formatted;
+};
+
 const PaymentInvoice = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -63,6 +71,9 @@ const PaymentInvoice = () => {
       // Validate phone number
       phoneSchema.parse(phoneNumber);
 
+      // Format phone number to 254XXXXXXXXX format for Lipana API
+      const formattedPhone = formatPhoneNumber(phoneNumber);
+
       // Generate merchant reference
       const merchantReference = `EDUPULSE-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -70,7 +81,7 @@ const PaymentInvoice = () => {
       const { error: dbError } = await supabase.from("payments").insert({
         email: registrationData.email,
         full_name: registrationData.fullName,
-        phone_number: phoneNumber,
+        phone_number: formattedPhone,
         amount: registrationFee,
         merchant_reference: merchantReference,
         payment_status: "pending",
@@ -91,7 +102,7 @@ const PaymentInvoice = () => {
         body: {
           merchantReference,
           amount: registrationFee,
-          phoneNumber,
+          phoneNumber: formattedPhone,
           email: registrationData.email,
           fullName: registrationData.fullName,
           password: registrationData.password,

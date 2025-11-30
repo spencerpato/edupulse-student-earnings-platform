@@ -48,13 +48,14 @@ const Signup = () => {
     try {
       const validated = signupSchema.parse({ fullName, email, password, confirmPassword });
       
-      // Instead of creating account, redirect to payment page
+      // Redirect to payment page with timestamp to prevent session expiry check issues
       navigate("/auth/payment-invoice", {
         state: {
           fullName: validated.fullName,
           email: validated.email,
           password: validated.password,
           referredBy: referredBy || null,
+          timestamp: Date.now(),
         }
       });
     } catch (error) {

@@ -3,11 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, FileText, Wallet, AlertTriangle, TrendingUp, Settings } from "lucide-react";
+import { Users, FileText, Wallet, AlertTriangle, TrendingUp, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const AdminDashboard = () => {
-  const { isAdmin, loading } = useAuth();
+  const { isAdmin, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -64,7 +64,8 @@ const AdminDashboard = () => {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-secondary">Admin Dashboard</h1>
-            <Button variant="outline" onClick={() => navigate("/")}>
+            <Button variant="outline" onClick={signOut} data-testid="button-exit-admin">
+              <LogOut className="h-4 w-4 mr-2" />
               Exit Admin
             </Button>
           </div>
